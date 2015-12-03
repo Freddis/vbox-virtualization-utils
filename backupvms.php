@@ -1,4 +1,6 @@
 <?php
+include(__DIR__."/include/functions.php");
+
 define("DATA_FOLDER", __DIR__."/backup");
 define("FTP_ADDRESS", "192.168.0.1");
 define("FTP_PATH", "/home-studio/vms-backup/");
