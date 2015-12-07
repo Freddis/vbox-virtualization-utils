@@ -1,0 +1,5 @@
+vms_to_start = mysql,gogs,redmine,home-studio,frontend-server
+ftp_address = 192.168.0.1
+ftp_path = /home-studio/vms-backup/
+ftp_user = admin
+ftp_password = admin
