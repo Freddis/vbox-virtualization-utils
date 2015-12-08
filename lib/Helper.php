@@ -94,15 +94,12 @@ class Helper
     /**
      * Создание резервной копии виртуальных машин и отправка ее на FTP сервер
      * 
-     * @param String $path Путь к папке, где будут храниться временные файлы
      * @throws Exception
      */
-    public function backupVms($path){
-	if(!is_writable($path))
-	    throw new Exception ("File either not writable or not exists: $path");
-        $this->logger->console("Starting backing up\n");
+    public function backupVms(){	
+        $this->logger->console("Starting backup\n");
 	$starttime = time();
-	$foldername = $this->createBackupFolder($path);
+	$foldername = $this->createBackupFolder();
 	$this->exportVms($foldername);
 	$this->uploadToFTP($foldername);
 	$this->deleteFolder($foldername);
@@ -250,10 +247,11 @@ class Helper
 
    /**
     * Создание папки для бекапов. Название содержит текущую дату.
-    * 
-    * @return String Путь к созданной папке.
     */
-   public function createBackupFolder($path){
+   public function createBackupFolder(){
+      $path = $this->config->getParam("path_to_temp_folder");
+      if(!is_writable($path))
+	    throw new Exception ("File either not writable or not exists: $path");   
       $name = date("Y-m-d_H:i");
       $path = $path."/".$name;
       $this->exec("mkdir ".$path);
