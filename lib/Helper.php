@@ -47,15 +47,10 @@ class Helper
 	$this->logger->console("Starting up vms.");
 	
 	$content = $this->config->getParam("vms_to_start");
-	$timeout = $this->config->getParam("timeout_between_vms");
 	$this->logger->console("Vms to start: ".$content);
 	$vms = explode(",",$content);
-	foreach ($vms as $vm){
+	foreach ($vms as $vm)
 	    $this->startVm($vm);
-	    $this->logger->console("Waiting {$timeout}s.");
-	    sleep($timeout);
-	}
-	    
 	
 	$this->logger->console("Everything done.");
     }
@@ -114,8 +109,14 @@ class Helper
      * @return String Результат выполнения команды
      */
     public function exec($command){
+	//Некоторые команды не выполняются под рутом, поэтому вот так
+	$configuser = $this->config->getParam("user",true);
+	$user = $this->getCurrentUser();
+	if($configuser != null)
+	    if($user != $configuser)
+		 $command = "su -c \"$command\" $configuser";
 	
-	$this->logger->log("--exec-- ".$command);
+	$this->logger->log("--exec user:$user conf:$configuser-- ".$command);
 	$result = shell_exec($command);
 	$this->logger->log("--result--".$result);
 	return $result;
@@ -277,6 +278,23 @@ class Helper
        }
        $this->exec("VBoxManage startvm ".$name." --type headless");
        $this->logger->console("Done.");
+       $timeout = $this->config->getParam("timeout_between_vms");
+       $this->logger->console("Waiting {$timeout}s.");
+       sleep($timeout);
+   }
+   
+   /**
+    * Возвращает пользователя от имени которого запущен скрипт.
+    * Этот способ довольно быстрый, но требует привилегий небольших (как минимум запущенного shell).
+    * Совсем без привилегии узнать юзера можно создав файл.
+    * @return String Логин пользователя
+    */
+   function getCurrentUser(){
+       //Вообще-то posix_get_login() должен возвращать правильный результат
+       //но он этого не делает, когда sudo сукаблять!
+       $processUser = posix_getpwuid(posix_geteuid());
+	$login = $processUser['name'];
+	return $login;
    }
 }
 

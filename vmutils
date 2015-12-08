@@ -1,0 +1,72 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          vmutils
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Startup vms and nightly backups
+# Description:       Startup vms and nightly backups
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+start(){
+        log_daemon_msg "Starting vmutils service"
+        log_progress_msg
+        php /etc/VirtualizationUtils/vmutilsdaemon.php
+	php /etc/VirtualizationUtils/startvms.php --gently
+        log_progress_msg
+        log_end_msg 0
+}
+
+
+stop(){
+        log_daemon_msg "Stopping vmutils service"
+	#Останавливаем демон, если он запущен
+        SERVICEPID=`ps aux | grep "php /etc/VirtualizationUtils/vmutilsdaemon.php" | grep -v grep | awk '{print $2}'`
+        log_progress_msg
+        if [ "x$SERVICEPID" != "x" ]; then
+                kill -2 $SERVICEPID
+        fi
+
+	#Останавливаем виртуалки
+	php /etc/VirtualizationUtils/stopvms.php
+        log_end_msg 0
+}
+
+status(){
+        SERVICEPID=`ps aux | grep "php /etc/VirtualizationUtils/vmutilsdaemon.php" | grep -v grep | awk '{print $2}'`
+        if [ "x$SERVICEPID" = "x" ]; then
+                echo "* Service is not running"
+        else
+                echo "* Service is running"
+        fi
+}
+
+case "$1" in
+        start)
+                start
+                ;;
+        
+        stop)
+                stop
+                ;;
+        
+        status)
+                status
+                ;;
+        backup)
+                backup
+                ;;
+        
+        restart|force-reload)
+                stop
+                start
+                ;;
+
+        *)
+                echo "Usage: $0 {start|stop|restart|backup|force-reload|status}"
+                exit 1
+
+esac

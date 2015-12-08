@@ -1,6 +1,7 @@
 vms_to_start = mysql,frontend-server,gogs,home-studio,redmine,teamcity
+user = freddis #Виртуальные машины будут не видны, если запустить все от root
 path_to_temp_folder = /home/freddis/ #он должен быть в разделе где много места. К примеру в /etc/ его совсем не много
-timeout_between_vms = 20
+timeout_between_vms = 20 #Время для виртуальной машины, чтобы запуститься. Если запустить их одновременно они повиснут
 ftp_address = 192.168.0.1
 ftp_path = /home-studio/vms-backup/
 ftp_user = admin
