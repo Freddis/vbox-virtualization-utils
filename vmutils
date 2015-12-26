@@ -15,7 +15,7 @@ start(){
         log_daemon_msg "Starting vmutils service"
         log_progress_msg
         php /etc/VirtualizationUtils/vmutilsdaemon.php
-	php /etc/VirtualizationUtils/startvms.php --gently
+	php /etc/VirtualizationUtils/startvms.php
         log_progress_msg
         log_end_msg 0
 }
@@ -42,6 +42,12 @@ status(){
         else
                 echo "* Service is running"
         fi
+}
+
+backup(){
+        log_daemon_msg "Starting backup"
+	php /etc/VirtualizationUtils/startvms.php
+        log_end_msg 0
 }
 
 case "$1" in
