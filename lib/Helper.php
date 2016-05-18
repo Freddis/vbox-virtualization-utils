@@ -160,6 +160,85 @@ class Helper
     }
 
     /**
+     * Отображает информацию о виртуальных машинах,
+     * 
+     * @param Bool $running Если True, то информация отобразится только для запущенных виртуальных машин
+     * @param String $vm  Имя конкретной виртуальной машины для отображения
+     */
+    public function showInfo($running = true,$vm = null){
+	$noTotal = false;
+	
+	//Если задана конкретная машина, то отображаем ее инфо
+	if($vm){
+	    $allVms = $this->getVms();
+	    $vms = array_intersect($allVms, array($vm));
+	    if(empty($vms))
+		throw  new Exception ("Machine '$vm' is not found.");
+	    $noTotal = true;
+	}
+	else {
+	   
+	    if($running)
+		$vms = $this->getRunningVms();
+	    else
+		$vms = $this->getVms();
+	}
+	$totalMemory  = 0;
+	foreach($vms as $vm){
+	    $arr = array();
+	    exec("vboxmanage showvminfo $vm",$arr);
+	    
+	    $name = $this->parseVMInfo("Name",$arr);
+	    $memory = $this->parseVmInfo("Memory size",$arr);
+	    $mac = $this->parseVmInfo("MAC",$arr);
+	    $cpu = $this->parseVmInfo("CPU exec",$arr);
+	    $state = $this->parseVmInfo("State",$arr);
+	    $os = $this->parseVmInfo("OS type",$arr);
+	    $vram = $this->parseVmInfo("VRAM",$arr);
+	    
+	    //Чистим строку мака от лишней инфы
+	    $mac = explode(",",$mac)[0];
+	    //Правим пробелы для операционки
+	    $os = str_replace("           ", " ", $os);
+	    
+	    //Собираем кол-во оперативки для того, чтобы получить общую
+	    $memline = explode(" ",$memory)[6];
+	    $memNumber = intval($memline);
+	    $totalMemory +=$memNumber;
+	    
+	    echo "$name \n";
+	    echo "$os \n";
+	    echo "$state\n";
+	    echo "$memory\n";
+	    echo "$cpu\n";
+	    echo "$vram\n";
+	    echo "$mac\n";
+	    echo "\n";
+	}
+	if($noTotal)
+	    return;
+	echo "----------\n";
+	echo count($vms)." vms \n";
+	echo "Memory total: ".$totalMemory." MB \n";
+	
+    }
+    
+    /**
+     * Парсит результат работы команды showvminfo с целью получения нужных строк
+     * 
+     * @param String $name Подстрока
+     * @param String $arr[] Массив строк, полученный после exec("vboxmanage showvminfo vm")
+     * @return String Искомая строка
+     */
+    protected function parseVmInfo($name,$arr){
+	foreach($arr as $line)
+	    if(strpos($line,$name) !== false)
+		return $line;
+
+	return "";
+    }
+    
+    /**
      * Получает имена виртуальных машин из списка, который выводит команда VBoxManage
      * 
      * @param String $output Вывод команды VBoxManage list.
