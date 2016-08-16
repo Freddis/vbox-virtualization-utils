@@ -41,7 +41,7 @@ class ConsoleParamManager
     /**
      * Получение значения параметра по его имени.
      * 
-     * @param String Имя параметра с префиксом. Например "-name".
+     * @param String Имя параметра с префиксом. Например "name".
      * @return String Значение параметра или NULL
      */
     public function getParam($name)

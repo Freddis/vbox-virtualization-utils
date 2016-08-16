@@ -94,15 +94,39 @@ class Helper
     public function backupVms(){	
         $this->logger->console("Starting backup\n");
 	$starttime = time();
-	$foldername = $this->createBackupFolder();
-	$this->exportVms($foldername);
-	$this->uploadToFTP($foldername);
-	$this->deleteFolder($foldername);
+        
+        $vms = $this->getVms();
+        foreach($vms as $vm)
+        {
+            $this->backupVm($vm);
+            $this->logger->console("Waiting 1 minute: giving time for vm to start \n");
+            sleep(60);
+        }
 
 	$time = time() - $starttime;
-	$this->logger->console("Backup complete in ".$time."s.");
-	
+	$this->logger->console("Backup complete in ".$time."s.");	
     }
+    
+    /**
+     * Резервное копирование одной виртуальной машины
+     * 
+     * @param String $vm Имя виртуальной машины
+     */
+    public function backupVm($vm)
+    {
+       $this->logger->console("Starting backup for $vm\n");
+       $foldername = $this->createBackupFolder();
+       $date = date("Y-m-d_H:i:s");
+       $filename = $vm."_".$date;
+       $starttime = time();
+       $path = $this->exportVm($vm,$foldername,$filename);
+       $time = time() - $starttime;
+       
+       $this->logger->console("Export done in ".$time."s.");
+       $this->uploadToFTP($path);
+       $this->deleteFolder($foldername);
+    }
+    
     /**
      * Выполнение команды unix. 
      * @param String $command Команда
@@ -297,7 +321,9 @@ class Helper
        $starttime = time();
        $vms = $this->getVms();
        foreach($vms as $vm)
-	   $this->exportVm($vm,$foldername);
+       {
+           $this->exportVm($vm,$foldername);
+       }
        $time = time() - $starttime;
        $this->logger->console("Export done in ".$time."s.");
    }
@@ -306,8 +332,10 @@ class Helper
     * Экспорт одной виртуальной машины. При необходимости машина выключается, затем ее работа будет возобновлена.
     * @param String $name Имя виртуальной машины
     * @param String $path Путь к папке в которую ее нужно экспортировать
+    * @param String $filename Имя файла с которым сохранять
+    * @return String Полный путь к файлу экспорта
     */
-   public function exportVm($name,$path)
+   public function exportVm($name,$path,$filename =null)
    {
        $this->logger->console("Exporting ".$name." to ".$path);
        $runningvms = $this->getRunningVms();
@@ -317,12 +345,23 @@ class Helper
 	   $this->debugExec("VBoxManage controlvm ".$name." poweroff");
        }
        $this->logger->console("Exporting...");
-       $this->debugExec("VBoxManage export ".$name." -o ".$path."/".$name.".ova");
+       $filename = $filename ? $filename : $name;
+       $fullpath = $path."/".$filename.".ova";
+       
+       if($this->debug)
+       {
+          exec("touch ".$fullpath);
+       }
+       else
+       {
+           $this->debugExec("VBoxManage export ".$name." -o ".$fullpath);
+       }
        
        if($isRunning){
 	   $this->logger->console("Starting vm back again.");
 	   $this->debugExec("VBoxManage startvm ".$name." --type headless");
        }
+       return $fullpath;
    }
 
    /**
@@ -332,9 +371,11 @@ class Helper
       $path = $this->config->getParam("path_to_temp_folder");
       if(!is_writable($path))
 	    throw new Exception ("File either not writable or not exists: $path");   
-      $name = date("Y-m-d_H:i");
+      $name = "tmp";//date("Y-m-d_H:i");
       $path = $path."/".$name;
-      $this->exec("mkdir ".$path);
+      
+      if(!file_exists($path))
+        $this->exec("mkdir ".$path);
       return $path."/";
    }
    
