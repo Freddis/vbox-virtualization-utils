@@ -14,8 +14,8 @@
 start(){
         log_daemon_msg "Starting vmutils service"
         log_progress_msg
+        php /etc/VirtualizationUtils/startvms.php
         php /etc/VirtualizationUtils/vmutilsdaemon.php
-	php /etc/VirtualizationUtils/startvms.php
         log_progress_msg
         log_end_msg 0
 }
@@ -30,8 +30,7 @@ stop(){
                 kill -2 $SERVICEPID
         fi
 
-	#Останавливаем виртуалки
-	php /etc/VirtualizationUtils/stopvms.php
+	
         log_end_msg 0
 }
 
@@ -44,11 +43,6 @@ status(){
         fi
 }
 
-backup(){
-        log_daemon_msg "Starting backup"
-	php /etc/VirtualizationUtils/startvms.php
-        log_end_msg 0
-}
 
 case "$1" in
         start)

@@ -19,7 +19,7 @@ class BackupDaemon extends Daemon
      * Час в двузначном формате, в который надо делать бекап
      * @var String 
      */
-    protected $backupHour = "04";
+    protected $backupHour = "17";
 
     /**
      * Настройки демона

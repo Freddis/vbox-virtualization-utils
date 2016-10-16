@@ -94,13 +94,11 @@ class Helper
     public function backupVms(){	
         $this->logger->console("Starting backup\n");
 	$starttime = time();
-        
+          
         $vms = $this->getVms();
         foreach($vms as $vm)
         {
             $this->backupVm($vm);
-            $this->logger->console("Waiting 1 minute: giving time for vm to start \n");
-            sleep(60);
         }
 
 	$time = time() - $starttime;
@@ -124,7 +122,10 @@ class Helper
        
        $this->logger->console("Export done in ".$time."s.");
        $this->uploadToFTP($path);
-       $this->deleteFolder($foldername);
+       
+       //В дебаге не удаляем файлы
+       if(!$this->debug)
+        $this->deleteFolder($foldername);
     }
     
     /**
@@ -289,7 +290,7 @@ class Helper
     */
    public function deleteFolder($foldername){
        $this->logger->console("Removing ".$foldername);
-       $this->exec("rm -rf ".$foldername);
+       $this->exec("rm -r ".$foldername);
        $this->logger->console("Done.");
    }
 
@@ -307,7 +308,8 @@ class Helper
        
        $this->logger->console("Uploading to ftp '$ftp_address$ftp_path'");
        $cmd = "ncftpput -R -u $ftp_user -p $ftp_password $ftp_address $ftp_path ".$foldername;
-       $this->debugExec($cmd);
+       $this->logger->console($cmd);
+       $this->exec($cmd);
        $time = time() - $starttime;
        $this->logger->console("Upload done in ".$time."s. ");
    }
@@ -360,6 +362,9 @@ class Helper
        if($isRunning){
 	   $this->logger->console("Starting vm back again.");
 	   $this->debugExec("VBoxManage startvm ".$name." --type headless");
+           $timing = $this->debug ? 2 : 60;
+           $this->logger->console("Waiting {$timing}s: giving time for vm to start \n");
+           sleep($timing);
        }
        return $fullpath;
    }
