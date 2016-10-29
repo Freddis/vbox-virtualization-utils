@@ -421,5 +421,193 @@ class Helper
 	$login = $processUser['name'];
 	return $login;
    }
+
+    /**
+     * Получение списка бекапов виртуальных машин
+     * 
+     * @return String[] Список имен файлов
+     */
+    public function getVmsBackups()
+    {
+       $ftp_address = $this->config->getParam("ftp_address");
+       $ftp_path = $this->config->getParam("ftp_path");
+       $ftp_user = $this->config->getParam("ftp_user");
+       $ftp_password = $this->config->getParam("ftp_password");
+       
+       $this->logger->console("Getting info from '$ftp_address$ftp_path'");
+       $cmd = "ncftpls -u $ftp_user -p $ftp_password ftp://$ftp_address$ftp_path ";
+       
+       $cmdResult = $this->exec($cmd);
+       $lines = explode("\n",$cmdResult);
+       $result = [];
+       foreach($lines as $line)
+           if(trim($line))
+                $result[] = trim($line);
+       
+       return $result;
+    }
+
+    /**
+     * Отображает информацию о бекапах
+     */
+    public function showBackupInfo()
+    {
+        $backups = $this->getVmsBackups();
+
+        $vms = $this->getVms();
+        
+        $i =0;
+        foreach($vms as $vm)
+        {
+            $count = $this->getBackupsNumberForVm($vm,$backups);
+            
+            $additional = "";
+            if($count >0)
+            {
+                //Получаем имена бекапов для машины и сортируем их по дате
+                $entries = $this->getBackupsForVm($vm,$backups);
+                //print_r($entries);
+                usort($entries,function($a,$b){
+                    return $this->getBackupTime($a) < $this->getBackupTime($b);
+                });
+                $time = $this->getBackupTime($entries[0]);
+                $date = date("Y-m-d H:i:s",$time);
+                $additional .= "Latest backup: $date";
+            }
+            echo ++$i.": $vm has $count backups available. $additional \n";
+        }
+        
+    }
+    
+    /**
+     * Удаляет старые бекапы для виртуальных машин
+     * 
+     * @param String $toKeep Количество последних бекапов, которые необходимо сохранить
+     */
+    public function removeOldBackups($toKeep = 3)
+    {
+        $this->logger->console("Removing latest backups except last '$toKeep'");
+        $backups = $this->getVmsBackups();
+        $vms = $this->getVms();
+        foreach($vms as $vm)
+        {
+            //Получаем имена бекапов для машины и сортируем их по дате
+            $entries = $this->getBackupsForVm($vm,$backups);
+            usort($entries,function($a,$b){
+                return $this->getBackupTime($a) < $this->getBackupTime($b);
+            });
+            
+            $numberOfEntries = count($entries);
+            //Если бекапов мало, то не удаляем старые
+            if($numberOfEntries <= $toKeep)
+            {
+                $this->logger->console("Skipping '$vm' because it has '$numberOfEntries' entries.");
+                continue;
+            }
+            //echo "$toKeep $numberOfEntries \n";
+            for($i = $toKeep; $i < $numberOfEntries; $i++)
+            {
+                $this->deleteVmBackup($entries[$i]);
+            }
+        }
+    }
+
+    /**
+     * Получение количества бекапов для конкретной виртуальной машины
+     * 
+     * @param String $vm Имя виртуальной машины
+     * @param String[] $backups Список всех бекапов
+     * @return Integer Количество бекапов для заданной виртуальной машины
+     */
+    public function getBackupsNumberForVm($vm, $backups)
+    {
+         $entries = $this->getBackupsForVm($vm, $backups);
+         $count = count($entries);
+         return $count;
+    }
+
+    /**
+     * Получение бекапов для конкретной виртуальной машины
+     * 
+     * @param String $vm Имя виртуальной машины
+     * @param String[] $backups Список всех бекапов
+     * @return String[] Список бекапов для заданной виртуальной машины
+     */
+    public function getBackupsForVm($vm,$backups)
+    {
+        $result = [];
+         foreach($backups as $line)
+             if(strpos($line,$vm."_") === 0)
+                 $result[] = $line;
+        return $result;
+    }
+
+    /**
+     * Получение времени бекапа 
+     * 
+     * @param String $backup Имя файла бекапа
+     * @return Integer Время в формате Unix timestamp
+     */
+    protected function getBackupTime($backup)
+    {
+        $parts = explode("_",$backup);
+        $reversed = array_reverse($parts);
+        $timeAndExt = $reversed[0];
+        $splat = explode(".",$timeAndExt);
+        $time = $splat[0];
+        $date = $reversed[1];
+        $datetime = $date." ".$time;
+        
+       
+        $time = strtotime($datetime);
+        //print_r($datetime); die();
+        return $time;
+    }
+
+    /**
+     * Удаление бекапа виртуальной машины
+     * 
+     * @param String $filename Имя файла бекапа
+     */
+    public function deleteVmBackup($filename)
+    {
+        //Если какой-то дебил удалит папку бекапов будет очень обидно
+        if (!$filename || !trim($filename))
+            throw new Exception("Specify filename to delete");
+
+        $this->logger->console("Removing backup '$filename'");
+        $ftp_address = $this->config->getParam("ftp_address");
+        $ftp_path = $this->config->getParam("ftp_path");
+        $ftp_user = $this->config->getParam("ftp_user");
+        $ftp_password = $this->config->getParam("ftp_password");
+
+        // установка соединения
+        $conn_id = ftp_connect($ftp_address);
+
+        // вход с именем пользователя и паролем
+        $login_result = ftp_login($conn_id, $ftp_user, $ftp_password);
+
+        try
+        {
+            // попытка удалить файл
+            if (ftp_delete($conn_id, $ftp_path.$filename))
+            {
+                $this->logger->console("'$filename' has been deleted");
+               
+            } else
+            {
+                $this->logger->console("Unable to remove '$file'");
+            }
+            ftp_close($conn_id);
+        } catch (Exception $ex)
+        {
+            // закрытие соединения
+            ftp_close($conn_id);
+            throw $ex;
+        }
+
+
+    }
+
 }
 

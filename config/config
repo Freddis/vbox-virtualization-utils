@@ -1,4 +1,4 @@
-vms_to_start = mysql,frontend-server,gogs,home-studio,redmine,teamcity,service,dev,dev1,dev4
+vms_to_start = mysql,frontend-server,gogs,home-studio,redmine,service,vault,dev,dev1,dev2,dev4
 user = freddis #Виртуальные машины будут не видны, если запустить все от root
 path_to_temp_folder = /home/freddis/ #он должен быть в разделе где много места. К примеру в /etc/ его совсем не много
 timeout_between_vms = 20 #Время для виртуальной машины, чтобы запуститься. Если запустить их одновременно они повиснут
