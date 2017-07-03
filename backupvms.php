@@ -26,9 +26,15 @@ if($params->hasFlag("backup"))
 
 if($params->hasFlag("storage"))
 {
+    $info = $params->hasFlag("list");
+    if($info)
+        return $helper->showBackupList();
     $info = $params->hasFlag("info");
     if($info)
         return $helper->showBackupInfo();
+    $fix = $params->hasFlag("fix");
+    if($fix)
+        return $helper->removeEmptyBackups();
     $clear=  $params->getParam("clear");
     if($clear)
         return $helper->removeOldBackups($clear);
@@ -36,6 +42,7 @@ if($params->hasFlag("storage"))
     echo "Please, specify parameters: \n";
     echo "'storage info' show information about available backups\n";
     echo "'storage clear 3' clears storage and leaves 3 latest backups\n";  
+    echo "'storage fix' clears storage from empty backups \n";  
     return;
 }
 

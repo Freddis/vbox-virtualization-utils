@@ -119,9 +119,19 @@ class Helper
        $starttime = time();
        $path = $this->exportVm($vm,$foldername,$filename);
        $time = time() - $starttime;
-       
+    
        $this->logger->console("Export done in ".$time."s.");
-       $this->uploadToFTP($path);
+       
+       //Проверяем размер, чтобы не загружать бекапы по 100 раз
+       $size = filesize($path);
+       $lastBackupSize = $this->getSizeOfPreviousBackup($vm);
+       if($size != $lastBackupSize)
+       {
+           $this->uploadToFTP($path);
+       }
+       else {
+           $this->logger->console("Skipping, cause size of the backup isn't changed: $size");
+       }
        
        //В дебаге не удаляем файлы
        if(!$this->debug)
@@ -352,7 +362,9 @@ class Helper
        
        if($this->debug)
        {
-          exec("touch ".$fullpath);
+          $cmd = "echo ratatatatata > ".$fullpath;
+          //print_r($cmd);
+          exec($cmd);
        }
        else
        {
@@ -422,37 +434,83 @@ class Helper
 	return $login;
    }
 
-    /**
+   /**
      * Получение списка бекапов виртуальных машин
      * 
+     * @param Bool $excludeEmpty Если true, то получает список файлов не нулевого размера (происходит при переполнении сервера)
      * @return String[] Список имен файлов
      */
-    public function getVmsBackups()
-    {
+   public function getVmsBackups($excludeEmpty = false)
+   {
        $ftp_address = $this->config->getParam("ftp_address");
        $ftp_path = $this->config->getParam("ftp_path");
        $ftp_user = $this->config->getParam("ftp_user");
        $ftp_password = $this->config->getParam("ftp_password");
        
        $this->logger->console("Getting info from '$ftp_address$ftp_path'");
-       $cmd = "ncftpls -u $ftp_user -p $ftp_password ftp://$ftp_address$ftp_path ";
+       $cmd = "ncftpls -l -u $ftp_user -p $ftp_password ftp://$ftp_address$ftp_path ";
        
        $cmdResult = $this->exec($cmd);
+       
        $lines = explode("\n",$cmdResult);
        $result = [];
        foreach($lines as $line)
            if(trim($line))
-                $result[] = trim($line);
-       
+           {
+               $stripped = $this->stripFtpLine($line);
+               if($excludeEmpty && $stripped["size"] == "0")
+               {
+                   continue;
+               }
+               $result[] = $stripped;
+           }
        return $result;
+   }
+   
+    /**
+     * Получение списка имен бекапов виртуальных машин
+     * 
+     * @param Bool $excludeEmpty Если true, то получает список файлов не нулевого размера (происходит при переполнении сервера)
+     * @return String[] Список имен файлов
+     */
+    public function getVmsBackupNames($excludeEmpty = false)
+    {
+        $backups = $this->getVmsBackups($excludeEmpty);
+        $result = array();
+        foreach($backups as $bak)
+        {
+            $result[] = $bak["file"];
+        }
+        return $result;
     }
 
+    /**
+     * Превращает информацию из строки выдачи ФТП в ассоциативный массив.
+     * @param String $line Строка с данными по файлу
+     * @return String[] Ассоциативные массив в полями ифнормарции о файле //("mode","a","b","c","size","month","day","time","file");
+     */
+    protected function stripFtpLine($line)
+    {
+        $result = array();
+        $parts = explode(" ",$line);
+        foreach($parts as $part)
+        {
+            if($part !== "")
+            {
+                $result[] = $part;
+            }
+        }
+        $labels = array("mode","a","b","c","size","month","day","time","file");
+        $final = array_combine($labels, $result);
+        return $final;
+    }
+    
     /**
      * Отображает информацию о бекапах
      */
     public function showBackupInfo()
     {
-        $backups = $this->getVmsBackups();
+        $backups = $this->getVmsBackupNames(true);
 
         $vms = $this->getVms();
         
@@ -487,7 +545,7 @@ class Helper
     public function removeOldBackups($toKeep = 3)
     {
         $this->logger->console("Removing latest backups except last '$toKeep'");
-        $backups = $this->getVmsBackups();
+        $backups = $this->getVmsBackupNames();
         $vms = $this->getVms();
         foreach($vms as $vm)
         {
@@ -607,6 +665,73 @@ class Helper
         }
 
 
+    }
+
+    /**
+     * Удаляет пустые бекапы (если размер < 1000 байт). 
+     * Использую 1000, а не 0 чтобы дебажить систему
+     */
+    public function removeEmptyBackups()
+    {
+        $this->logger->console("Removing empty backups");
+        $backups = $this->getVmsBackups();
+        foreach($backups as $backup)
+        {
+            $file = $backup["file"];
+            //Если бекапов мало, то не удаляем старые
+            if($backup["size"] < 1000)
+            {
+                $this->logger->console("Deleting '$file'");
+                $this->deleteVmBackup($file);
+                continue;
+            }
+        }
+    }
+
+    /**
+     * Отображение списка бекапов и их размера
+     */
+    public function showBackupList()
+    {
+        $backups = $this->getVmsBackups($excludeEmpty);
+        $result = array();
+        foreach($backups as $bak)
+        {
+            echo $bak["file"].", size: ".$bak["size"],"\n";
+        }
+    }
+
+    /**
+     * Получение размера предыдущего бекапа для виртуальной машины
+     * @param String $vm Имя виртуальной машины
+     * @return Int Размер бекапа
+     */
+    public function getSizeOfPreviousBackup($vm)
+    {
+        $size = 0;
+        $names = $this->getVmsBackupNames();
+        $vmBakupNames = $this->getBackupsForVm($vm, $names);
+        if(count($vmBakupNames) == 0)
+        {
+            return  0;
+        }
+        usort($vmBakupNames,function($a,$b){
+                return $this->getBackupTime($a) < $this->getBackupTime($b);
+            });
+        
+        $lastBackupName = $vmBakupNames[0];
+        
+        //Ищем информацию о данном бекапе
+        $backups = $this->getVmsBackups();
+        $filtered = array_filter($backups,function($a) use($lastBackupName){
+           return $a["file"] == $lastBackupName; 
+        });
+        $values = array_values($filtered);
+        $info = $values[0];
+        
+        $size = $info["size"];
+        
+        return $size;
     }
 
 }
