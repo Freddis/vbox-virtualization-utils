@@ -511,6 +511,7 @@ class Helper
     public function showBackupInfo()
     {
         $backups = $this->getVmsBackupNames(true);
+        $bytes = $this->getBackupsSize();
 
         $vms = $this->getVms();
         
@@ -534,6 +535,8 @@ class Helper
             }
             echo ++$i.": $vm has $count backups available. $additional \n";
         }
+        $strSize = number_format($bytes/(1000*1000*1000),2);
+        echo "Size of backups: {$strSize}gb \n";
         
     }
     
@@ -730,6 +733,24 @@ class Helper
         $info = $values[0];
         
         $size = $info["size"];
+        
+        return $size;
+    }
+
+    
+    /**
+     * Получение размера бекапов
+     * 
+     * @return Int Количество байт, занимаемых бекапами
+     */
+    public function getBackupsSize()
+    {
+        $size = 0;
+        $backups = $this->getVmsBackups();
+        foreach($backups as $bak)
+        {
+            $size += $bak["size"];
+        }
         
         return $size;
     }
