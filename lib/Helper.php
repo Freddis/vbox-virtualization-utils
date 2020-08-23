@@ -1,9 +1,8 @@
 <?php
 /**
- * Объект, который заменяет функции.
- * Понадобился по причине необходимости логирования.
- * 
- * @author Sarychev Alexei <freddis336@gmail.com>
+ * Object that contains all the business logic for the commands
+ *
+ * @author Sarychev Alexei <alex@home-studio.pro>
  */
 class Helper
 {
@@ -691,18 +690,6 @@ class Helper
         }
     }
 
-    /**
-     * Отображение списка бекапов и их размера
-     */
-    public function showBackupList()
-    {
-        $backups = $this->getVmsBackups($excludeEmpty);
-        $result = array();
-        foreach($backups as $bak)
-        {
-            echo $bak["file"].", size: ".$bak["size"],"\n";
-        }
-    }
 
     /**
      * Получение размера предыдущего бекапа для виртуальной машины

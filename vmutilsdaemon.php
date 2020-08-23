@@ -1,5 +1,5 @@
 <?php
-//Демон для бэкапов виртуальных машин
+//Daemon for backing up virtual machines
 require_once  __DIR__."/lib/include.php";
 
 $logger = new Logger(__DIR__."/log",  true);
@@ -7,10 +7,10 @@ $config = new Config(__DIR__."/config/config");
 $daemon = new BackupDaemon($config, $logger);
 $daemon->start();
 
-//Раньше этот демон у нас был вместо крона для сервера клиента
-//Теперь он не особо нужен
+//The old way that used cron and interval daemon
+//I decided to leave it be to remind me of the way
 
-//запускаем другого демона
+//starting the daemon
 //$logger->log("Starting interval daemon");
 //$result = exec("php ".__DIR__."/intervaldaemon.php > /dev/null &");
 //$logger->log($result);

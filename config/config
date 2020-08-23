@@ -1,8 +1,8 @@
-vms_to_start = mysql,frontend-server,gogs,home-studio,redmine,service,vault,dev,dev1,dev2,dev4
-user = freddis #Виртуальные машины будут не видны, если запустить все от root
-path_to_temp_folder = /home/freddis/ #он должен быть в разделе где много места. К примеру в /etc/ его совсем не много
-timeout_between_vms = 20 #Время для виртуальной машины, чтобы запуститься. Если запустить их одновременно они повиснут
-ftp_address = 192.168.0.1
+vms_to_start = mysql,frontend-server,gogs,home-studio,redmine,service,vault,dev,dev1,dev2,dev4 #list of virtual machines to start using startvms.php command
+user = freddis #user from which we're starting virtual machines (they're not visible to other users with vboxmanage cmd)
+path_to_temp_folder = /home/freddis/ #path to folder when backups are being stored before transfer to an FTP server
+timeout_between_vms = 20 #Time we wait between starting next virtual machine (if we start them simultaneously, they have high changes to hang. No idea why)
+ftp_address = 192.168.0.1 #credentials for PHP server
 ftp_path = /upload/vms/
 ftp_user = admin
 ftp_password = admin

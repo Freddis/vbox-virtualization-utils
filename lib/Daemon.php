@@ -1,91 +1,86 @@
 <?php
 
 /**
- * Базовый класс для демонов. Демон - это фоновые процессы в Unix.
- * 
- * @author Sarychev Alexei <freddis336@gmail.com>
+ * Base class for daemons.
+ *
+ * @author Sarychev Alexei <alex@home-studio.pro>
  */
 abstract class Daemon
 {
     /**
-     * Объект для логирования
+     * Logger
      * @var Logger
      */
     protected $logger;
 
     /**
-     * Режим дебага.	
-     * @var Bool 
+     * Is in debug mode
+     * @var Bool
      */
     protected $debug;
-    
-   
+
+
     /**
-     * Конструктор
      * @param Logger $logger
-     * @param type $inDebug Режим дебага. Демон запускается в процессе родителя. То есть при завершении основного скрипта демон тоже завершится.
+     * @param boolean $inDebug Режим дебага. Daemon is being executed in parent process, hence it also stops if the parent process stops.
      */
-    public function Daemon(Logger $logger, $inDebug=false)
+    public function Daemon(Logger $logger, $inDebug = false)
     {
-	$this->logger = $logger;
-	$this->debug = $inDebug;
+        $this->logger = $logger;
+        $this->debug = $inDebug;
     }
-    
+
     /**
-     * Запуск демона. 
-     * @return Undefined Запуск демона не может ничего возвращать. Демон - это конечная программа, поэтому должен все необходимые действия делать сам.
-     * @throws Exception Исключение в случае неудачи запуска демона.
+     * Starting daemon
+     * @throws Exception Throws exception if cannot
      */
     public function start()
-    {	
-	$name = __CLASS__;
-	$this->logger->console("Starting '$name' daemon.");
-	//Запуск в режиме дебага, если необходимо.
-	if($this->debug)
-	    return $this->runDebug();
-	
-	// Создаем дочерний процесс
-	// весь код после pcntl_fork() будет выполняться
-	// двумя процессами: родительским и дочерним
-	$pid = pcntl_fork();
-	if ($pid == -1)
-	{
-	    // Не удалось создать дочерний процесс
-	    $msg = "Unable to create child process. Exit.";
-	    $logger->console($msg);
-	    throw new Exception($msg);
-	}
-	if ($pid)
-	{
-	    //родительский процесс уходит, так как мы работаем в фоновом режиме
-	    $this->logger->console("Child process pid: $pid");
-	    return;
-	} 
-	
-	// А этот код выполнится дочерним процессом
-	$childpid = getmypid();
-	$this->run($childpid);
-	//Так как демон конечная программа, выполнение php я остановлю насильно
-	exit;
+    {
+        $name = __CLASS__;
+        $this->logger->console("Starting '$name' daemon.");
+        //running in  debug mode if necessary
+        if ($this->debug)
+            return $this->runDebug();
+
+        // Creating a child process
+        // all the code after pcntl_fork() will be executed in both child and parent processes
+        $pid = pcntl_fork();
+        if ($pid == -1) {
+            // Couldn't create a child process
+            $msg = "Unable to create child process. Exit.";
+            $this->logger->console($msg);
+            throw new Exception($msg);
+        }
+        if ($pid) {
+            //the parent process, is going away
+            $this->logger->console("Child process pid: $pid");
+            return;
+        }
+
+        // And this code is the child process
+        $childpid = getmypid();
+        $this->run($childpid);
     }
-    
+
     /**
-     * Выполнение демона в режиме дебага. Выполнение его не в фоновом режиме.
-     * Затем убиваем PHP, потому что в реальных условиях родительский процесс и дочерний не могут просто так обмениваться информацией.
+     * Running daemon not in backgroupd.
+     * After running it in debug we kill php, since in real conditions parent and child process cannot exchange any data.
      */
-    protected function runDebug(){
-	$this->logger->console("Debug mode. No child process created. Starting daemon code.");
-	$pid =  getmypid();
-	$this->run($pid);
-	//Даже в режиме дебага надо понимать, что демон это конечная программа.
-	exit;
+    protected function runDebug()
+    {
+        $this->logger->console("Debug mode. No child process created. Starting daemon code.");
+        $pid = getmypid();
+        $this->run($pid);
+        exit;
     }
+
     /**
-     * Исполнение кода демона.
-     * Тут начинается исходный код демона, зацикливаюшийся в While.
-     * @param Number $pid Номер процесса демона
+     * Running the daemon.
+     * Here goes the code that is cycled in an endless while loop.
+     *
+     * @param Number $pid Process number
      */
-    protected abstract function run($pid);   
-    
-    
+    protected abstract function run($pid);
+
+
 }

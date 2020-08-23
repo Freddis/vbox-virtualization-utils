@@ -1,4 +1,5 @@
 <?php
+#Backing up virtual machines and uploading them to a FTP server
 require_once  __DIR__."/lib/include.php";
 $logger = new Logger(__DIR__."/log");
 $config = new Config(__DIR__."/config/config");
@@ -26,9 +27,6 @@ if($params->hasFlag("backup"))
 
 if($params->hasFlag("storage"))
 {
-    $info = $params->hasFlag("list");
-    if($info)
-        return $helper->showBackupList();
     $info = $params->hasFlag("info");
     if($info)
         return $helper->showBackupInfo();
@@ -40,8 +38,9 @@ if($params->hasFlag("storage"))
         return $helper->removeOldBackups($clear);
     
     echo "Please, specify parameters: \n";
+    echo "'storage list' show information about available backups\n";
     echo "'storage info' show information about available backups\n";
-    echo "'storage clear 3' clears storage and leaves 3 latest backups\n";  
+    echo "'storage clear 3' clears storage and leaves 3 latest backups\n";
     echo "'storage fix' clears storage from empty backups \n";  
     return;
 }
